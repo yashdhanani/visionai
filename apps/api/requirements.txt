@@ -1,0 +1,24 @@
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0.30
+alembic>=1.13
+psycopg[binary]>=3.2 ; platform_system != "Darwin" or python_version < "3.13"
+pydantic>=2.7
+pydantic-settings>=2.3
+email-validator>=2.1
+PyJWT>=2.8
+bcrypt>=4.1
+redis>=5.0
+ultralytics>=8.3.0
+opencv-python-headless>=4.10
+pillow>=10.3
+numpy>=1.26
+sahi>=0.11
+easyocr>=1.7
+python-multipart>=0.0.9
+httpx>=0.27
+pytest>=8.2
+pytest-asyncio>=0.23
+websockets>=12.0
+boto3>=1.34
+psutil>=5.9

@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies
+      run: |
+        cd apps/api
+        pip install -r requirements.txt
+
+    - name: Run Python tests
+      run: |
+        cd apps/api
+        pytest tests/ -v
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Node dependencies
+      run: |
+        cd apps/web
+        npm ci
+
+    - name: Lint
+      run: |
+        cd apps/web
+        npm run lint
+
+    - name: Type check
+      run: |
+        cd apps/web
+        npx tsc --noEmit
+
+    - name: Build
+      run: |
+        cd apps/web
+        npm run build
