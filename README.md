@@ -136,7 +136,9 @@ asyncio.run(stream())
 
 If you find VisionAI helpful, consider supporting the project:
 
-[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/dhananiyash)
+<a href="https://www.buymeacoffee.com/dhananiyash" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="40" style="height: 40px; width: auto;" />
+</a>
 
 ---
 
