@@ -18,11 +18,4 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "1440"
       - key: DATABASE_URL
-        fromDatabase:
-          name: visionai-db
-          property: connectionString
-
-databases:
-  - name: visionai-db
-    plan: free
-    region: oregon
+        sync: false
