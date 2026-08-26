@@ -23,12 +23,16 @@ def _engine_kwargs(url: str) -> dict:
     return {"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True}
 
 
-if settings.DATABASE_URL.startswith("sqlite") and ":memory:" not in settings.DATABASE_URL:
-    os.makedirs(os.path.dirname(settings.DATABASE_URL.replace("sqlite:///", "")) or ".", exist_ok=True)
+db_url = settings.DATABASE_URL
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-engine = create_engine(settings.DATABASE_URL, **_engine_kwargs(settings.DATABASE_URL))
+if db_url.startswith("sqlite") and ":memory:" not in db_url:
+    os.makedirs(os.path.dirname(db_url.replace("sqlite:///", "")) or ".", exist_ok=True)
 
-if settings.DATABASE_URL.startswith("sqlite"):
+engine = create_engine(db_url, **_engine_kwargs(db_url))
+
+if db_url.startswith("sqlite"):
 
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragma(dbapi_connection, connection_record):
