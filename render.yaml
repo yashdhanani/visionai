@@ -5,17 +5,24 @@ services:
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: ./apps/api
     plan: free
-    region: singapore
+    region: oregon
     branch: main
     healthCheckPath: /api/v1/health
     envVars:
       - key: APP_ENV
         value: production
-      - key: SECRET_KEY
-        generateValue: true
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        value: "*"
+        value: "https://visionai-puce.vercel.app,https://visionai-5nvjohast-yashs-projects-81c42f87.vercel.app"
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "1440"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: visionai-db
+          property: connectionString
+
+databases:
+  - name: visionai-db
+    plan: free
+    region: oregon
