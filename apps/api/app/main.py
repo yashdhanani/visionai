@@ -110,9 +110,13 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger("visionai")
     logger.info("VisionAI starting", extra={"env": settings.APP_ENV})
 
-    Base.metadata.create_all(bind=engine)
-    _migrate_schema()
-    _seed_admin()
+    try:
+        Base.metadata.create_all(bind=engine)
+        _migrate_schema()
+        _seed_admin()
+        logger.info("Database schema and admin initialized successfully")
+    except Exception as db_err:
+        logger.error(f"Database initialization deferred (will connect on demand): {db_err}")
 
     try:
         get_model_manager().load_default()
