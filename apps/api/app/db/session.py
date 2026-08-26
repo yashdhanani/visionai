@@ -23,9 +23,24 @@ def _engine_kwargs(url: str) -> dict:
     return {"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True}
 
 
-db_url = settings.DATABASE_URL
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
+import urllib.parse
+
+def _normalize_database_url(url: str) -> str:
+    if url.startswith("postgres://") or url.startswith("postgresql://"):
+        scheme = "postgresql"
+        rest = url.split("://", 1)[1]
+        if "@" in rest:
+            auth, host_path = rest.rsplit("@", 1)
+            if ":" in auth:
+                user, raw_password = auth.split(":", 1)
+                unquoted_pass = urllib.parse.unquote(raw_password)
+                encoded_password = urllib.parse.quote(unquoted_pass, safe="")
+                return f"{scheme}://{user}:{encoded_password}@{host_path}"
+        return f"{scheme}://{rest}"
+    return url
+
+
+db_url = _normalize_database_url(settings.DATABASE_URL)
 
 if db_url.startswith("sqlite") and ":memory:" not in db_url:
     os.makedirs(os.path.dirname(db_url.replace("sqlite:///", "")) or ".", exist_ok=True)
