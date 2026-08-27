@@ -132,9 +132,23 @@ app = FastAPI(
     version="1.0.0",
     description="Real-Time Object Detection Platform",
     lifespan=lifespan,
-    docs_url="/docs" if settings.APP_ENV != "production" else None,
+    docs_url="/docs",
     redoc_url=None,
 )
+
+
+@app.get("/")
+def root():
+    return {
+        "success": True,
+        "name": "VisionAI API",
+        "version": "1.0.0",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/api/v1/health",
+        "frontend": "https://visionai-puce.vercel.app",
+    }
+
 
 _allowed_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"] if settings.is_production else ["*"]
 _allowed_headers = ["Content-Type", "Authorization", "X-Request-ID"] if settings.is_production else ["*"]
