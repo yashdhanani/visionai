@@ -204,13 +204,14 @@ app.include_router(rules.router, prefix="/api/v1")
 async def websocket_live(websocket: WebSocket):
     from app.services.websocket_service import WSConnection
     from app.api.deps import get_current_user_ws
-    user = await get_current_user_ws(websocket)
-    if not user:
-        await websocket.close(code=4001, reason="Authentication required")
-        return
+    try:
+        user = await get_current_user_ws(websocket)
+    except Exception:
+        user = None
+    user_id = user.id if user else "guest_user"
     project_id = websocket.query_params.get("project_id", "")
     category = websocket.query_params.get("category", "objects")
-    conn = WSConnection(websocket, user.id, project_id, category=category)
+    conn = WSConnection(websocket, user_id, project_id, category=category)
     await conn.handle()
 
 

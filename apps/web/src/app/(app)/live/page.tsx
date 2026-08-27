@@ -56,29 +56,38 @@ export default function LiveDetectionPage() {
   const { token } = useAuthStore();
   const { error: toastError, success: toastSuccess } = useToast();
 
+  const isDetectingRef = useRef<boolean>(false);
+  const isPausedRef = useRef<boolean>(false);
+  const inFlightRef = useRef<boolean>(false);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastFrameTimeRef = useRef<number>(0);
+
   const drawDetections = useCallback((dets: Detection[], frameW: number, frameH: number) => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
     if (!canvas || !video) return;
 
-    const containerW = video.clientWidth;
-    const containerH = video.clientHeight;
+    const containerW = video.clientWidth || 640;
+    const containerH = video.clientHeight || 360;
     const dpr = window.devicePixelRatio || 1;
 
-    canvas.width = containerW * dpr;
-    canvas.height = containerH * dpr;
-    canvas.style.width = `${containerW}px`;
-    canvas.style.height = `${containerH}px`;
+    if (canvas.width !== containerW * dpr || canvas.height !== containerH * dpr) {
+      canvas.width = containerW * dpr;
+      canvas.height = containerH * dpr;
+      canvas.style.width = `${containerW}px`;
+      canvas.style.height = `${containerH}px`;
+    }
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, containerW, containerH);
 
-    if (!showBoxes || !dets.length) return;
+    if (!showBoxes || !dets || !dets.length) return;
 
-    const videoRatio = frameW / frameH;
+    const videoRatio = (frameW || 640) / (frameH || 360);
     const containerRatio = containerW / containerH;
     let renderW: number, renderH: number, offsetX: number, offsetY: number;
 
@@ -94,8 +103,8 @@ export default function LiveDetectionPage() {
       offsetY = 0;
     }
 
-    const scaleX = renderW / frameW;
-    const scaleY = renderH / frameH;
+    const scaleX = renderW / (frameW || 640);
+    const scaleY = renderH / (frameH || 360);
 
     const classColors: Record<string, string> = {};
     const palette = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
@@ -107,24 +116,23 @@ export default function LiveDetectionPage() {
         colorIdx++;
       }
       const color = classColors[det.class_name];
-      // Backend sends bbox.x/y as the TOP-LEFT corner (YOLO xyxy convention)
       const x = offsetX + det.bbox.x * scaleX;
       const y = offsetY + det.bbox.y * scaleY;
       const w = det.bbox.width * scaleX;
       const h = det.bbox.height * scaleY;
 
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.strokeRect(x, y, w, h);
 
       const labelParts = [det.class_name];
       if (showConf) labelParts.push(`${(det.confidence * 100).toFixed(0)}%`);
-      if (det.track_id !== null) labelParts.push(`#${det.track_id}`);
+      if (det.track_id !== null && det.track_id !== undefined) labelParts.push(`#${det.track_id}`);
       const label = labelParts.join(" ");
 
       if (showLabels && label) {
         const fontSize = 12;
-        ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
+        ctx.font = `700 ${fontSize}px system-ui, sans-serif`;
         const textWidth = ctx.measureText(label).width;
         const padX = 6;
         const padY = 3;
@@ -133,7 +141,7 @@ export default function LiveDetectionPage() {
 
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.roundRect(x, labelY < 0 ? y : labelY, textWidth + padX * 2, labelH, 3);
+        ctx.roundRect(x, labelY < 0 ? y : labelY, textWidth + padX * 2, labelH, 4);
         ctx.fill();
 
         ctx.fillStyle = "#fff";
@@ -142,16 +150,11 @@ export default function LiveDetectionPage() {
     });
   }, [showBoxes, showLabels, showConf]);
 
-  const inFlightRef = useRef<boolean>(false);
-  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const lastFrameTimeRef = useRef<number>(0);
-
   const sendFrame = useCallback(() => {
     const video = videoRef.current;
     const ws = wsRef.current;
-    if (!video || !ws || ws.readyState !== WebSocket.OPEN || paused) return;
+    if (!video || !ws || ws.readyState !== WebSocket.OPEN || isPausedRef.current) return;
 
-    // Zero-lag in-flight guard: never pile up frames in buffer
     if (inFlightRef.current) return;
 
     const now = performance.now();
@@ -166,8 +169,10 @@ export default function LiveDetectionPage() {
     const tempCanvas = offscreenCanvasRef.current;
     const w = video.videoWidth || 640;
     const h = video.videoHeight || 360;
-    tempCanvas.width = w;
-    tempCanvas.height = h;
+    if (tempCanvas.width !== w || tempCanvas.height !== h) {
+      tempCanvas.width = w;
+      tempCanvas.height = h;
+    }
     const ctx = tempCanvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
@@ -177,10 +182,10 @@ export default function LiveDetectionPage() {
 
     inFlightRef.current = true;
 
-    // Safety timeout in case a packet is lost over network
+    // Safety timeout in case of dropped packet
     setTimeout(() => {
       inFlightRef.current = false;
-    }, 120);
+    }, 150);
 
     ws.send(
       JSON.stringify({
@@ -192,13 +197,13 @@ export default function LiveDetectionPage() {
         jpeg_b64: b64,
       })
     );
-  }, [paused, maxFps]);
+  }, [maxFps]);
 
   const startCamera = async () => {
     try {
       const [w, h] = resolution.split("x").map(Number);
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: w }, height: { ideal: h }, facingMode: "environment" },
+        video: { width: { ideal: w }, height: { ideal: h }, facingMode: "user" },
         audio: false,
       });
       streamRef.current = stream;
@@ -218,13 +223,15 @@ export default function LiveDetectionPage() {
   };
 
   const connectWs = () => {
-    const wsUrl = `${getWsUrl()}/api/v1/detect/live?token=${token}&model=${modelId}`;
+    const rawToken = token || (typeof window !== "undefined" ? localStorage.getItem("access_token") : "") || "";
+    const wsUrl = `${getWsUrl()}/api/v1/detect/live?token=${encodeURIComponent(rawToken)}&model=${modelId}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       setConnected(true);
       inFlightRef.current = false;
       ws.send(JSON.stringify({ type: "config", confidence, iou, tracker, max_fps: maxFps, resolution, quality: 70, model_id: modelId }));
+      sendFrame();
     };
 
     ws.onmessage = (event) => {
@@ -232,14 +239,17 @@ export default function LiveDetectionPage() {
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === "detection") {
-          setDetections(msg.detections);
+          const dets = msg.detections || [];
+          setDetections(dets);
           setPerf(msg.performance);
           const counts: Record<string, number> = {};
-          msg.detections.forEach((d: Detection) => {
+          dets.forEach((d: Detection) => {
             counts[d.class_name] = (counts[d.class_name] || 0) + 1;
           });
           setObjectCounts(counts);
-          drawDetections(msg.detections, msg.frame_width, msg.frame_height);
+          drawDetections(dets, msg.frame_width || 640, msg.frame_height || 360);
+        } else if (msg.type === "frame_skipped") {
+          inFlightRef.current = false;
         }
       } catch (e) {}
     };
@@ -264,26 +274,41 @@ export default function LiveDetectionPage() {
 
   // Continuous animation loop for capture
   const streamLoop = useCallback(() => {
+    if (!isDetectingRef.current || isPausedRef.current) return;
     sendFrame();
-    if (detecting && !paused) {
-      animFrameRef.current = requestAnimationFrame(streamLoop);
-    }
-  }, [detecting, paused, sendFrame]);
+    animFrameRef.current = requestAnimationFrame(streamLoop);
+  }, [sendFrame]);
 
   const startDetection = async () => {
     await startCamera();
     connectWs();
+    isDetectingRef.current = true;
+    isPausedRef.current = false;
     setDetecting(true);
+    setPaused(false);
     inFlightRef.current = false;
     animFrameRef.current = requestAnimationFrame(streamLoop);
   };
 
+  const togglePause = () => {
+    const nextPaused = !paused;
+    isPausedRef.current = nextPaused;
+    setPaused(nextPaused);
+    if (!nextPaused && isDetectingRef.current) {
+      inFlightRef.current = false;
+      animFrameRef.current = requestAnimationFrame(streamLoop);
+    }
+  };
+
   const stopDetection = () => {
+    isDetectingRef.current = false;
+    isPausedRef.current = false;
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (frameTimerRef.current) clearInterval(frameTimerRef.current);
     disconnectWs();
     stopCamera();
     setDetecting(false);
+    setPaused(false);
     inFlightRef.current = false;
     setDetections([]);
     setPerf(null);
@@ -403,10 +428,17 @@ export default function LiveDetectionPage() {
                   </div>
                 </div>
               )}
-              {connected && perf && (
+              {detecting && (
                 <div className="absolute top-3 left-3 flex gap-2">
-                  <Badge variant="success">{perf.fps.toFixed(1)} FPS</Badge>
-                  <Badge variant="secondary">{perf.latency_ms.toFixed(0)}ms</Badge>
+                  {connected ? (
+                    <>
+                      <Badge variant="success">🟢 Live</Badge>
+                      {perf && <Badge variant="secondary">{perf.fps.toFixed(1)} FPS</Badge>}
+                      {perf && <Badge variant="secondary">{perf.latency_ms.toFixed(0)}ms</Badge>}
+                    </>
+                  ) : (
+                    <Badge variant="destructive" className="animate-pulse">🟡 Connecting Stream...</Badge>
+                  )}
                 </div>
               )}
             </div>

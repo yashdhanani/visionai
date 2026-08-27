@@ -63,6 +63,18 @@ export interface ApiResponse<T = unknown> {
 }
 
 export function getWsUrl(): string {
-  const base = API_BASE.replace(/^http/, "ws");
+  if (typeof window !== "undefined") {
+    const customBackend = localStorage.getItem("vision_ai_backend_url");
+    if (customBackend) {
+      return customBackend
+        .replace(/^https:\/\//i, "wss://")
+        .replace(/^http:\/\//i, "ws://")
+        .replace(/\/+$/, "");
+    }
+  }
+  const base = API_BASE
+    .replace(/^https:\/\//i, "wss://")
+    .replace(/^http:\/\//i, "ws://")
+    .replace(/\/+$/, "");
   return base;
 }
