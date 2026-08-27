@@ -12,6 +12,9 @@ DATA_DIR = os.path.join(API_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 
+PROJECT_ROOT = API_DIR
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=os.path.join(API_DIR, ".env"),
@@ -50,7 +53,7 @@ class Settings(BaseSettings):
     MAX_WEBSOCKET_FPS: int = 30
 
     STORAGE_BACKEND: Literal["local", "s3"] = "local"
-    STORAGE_ROOT: str = os.path.join(PROJECT_ROOT, "data", "uploads")
+    STORAGE_ROOT: str = os.path.join(DATA_DIR, "uploads")
     S3_ENDPOINT: str = ""
     S3_BUCKET: str = ""
     S3_ACCESS_KEY: str = ""
