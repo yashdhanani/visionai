@@ -17,18 +17,28 @@ const MODEL_ICONS: Record<string, typeof Cpu> = {
   fire_smoke: Flame,
 };
 
+const FALLBACK_MODELS = [
+  { id: "default", name: "YOLOv8n (General)", description: "Real-time object detection across 80 COCO categories (people, vehicles, animals, items).", classes: "80 classes", loaded: true, metadata: { device: "MPS/CUDA/CPU", class_count: 80 } },
+  { id: "face", name: "YOLOv8n-Face", description: "Ultra-fast face detection optimized for close and distant facial bounding boxes.", classes: "1 class (face)", loaded: true, metadata: { device: "MPS/CUDA/CPU", class_count: 1 } },
+  { id: "plate", name: "YOLOv8m-Plate (ANPR)", description: "Automatic vehicle license plate localization and character OCR integration.", classes: "1 class (plate)", loaded: true, metadata: { device: "MPS/CUDA/CPU", class_count: 1 } },
+  { id: "pose", name: "YOLOv8n-Pose", description: "Full-body 17-keypoint skeleton joint tracking and pose estimation.", classes: "1 class (person + 17 keypoints)", loaded: true, metadata: { device: "MPS/CUDA/CPU", class_count: 17 } },
+  { id: "fire_smoke", name: "YOLOv8n-FireSmoke", description: "Hazard surveillance model trained on D-Fire dataset for early fire and smoke detection.", classes: "2 classes (fire, smoke)", loaded: true, metadata: { device: "MPS/CUDA/CPU", class_count: 2 } },
+];
+
 export default function ModelsPage() {
   const queryClient = useQueryClient();
   const { success, error: toastError } = useToast();
 
-  const { data: models = [], isLoading } = useQuery({
+  const { data: models = FALLBACK_MODELS, isLoading } = useQuery({
     queryKey: ["models", "available"],
     queryFn: () => api.get("/api/v1/models/available").then((r) => r.data.data),
+    initialData: FALLBACK_MODELS,
   });
 
-  const { data: active } = useQuery({
+  const { data: active = FALLBACK_MODELS[0] } = useQuery({
     queryKey: ["models", "active"],
     queryFn: () => api.get("/api/v1/models/active").then((r) => r.data.data),
+    initialData: FALLBACK_MODELS[0],
   });
 
   const activateMutation = useMutation({

@@ -60,12 +60,13 @@ export default function DiagnosticsPage() {
       // 3. WebSocket
       updateCheck(2, { status: "loading", message: "Connecting WebSocket..." });
       const wsStart = performance.now();
-      const ws = new WebSocket(`${getWsUrl()}/api/v1/detect/live?token=${token}`);
+      const rawToken = token || (typeof window !== "undefined" ? localStorage.getItem("access_token") : "") || "";
+      const ws = new WebSocket(`${getWsUrl()}/api/v1/detect/live?token=${encodeURIComponent(rawToken)}`);
 
       await new Promise<void>((resolve, reject) => {
         ws.onopen = () => resolve();
         ws.onerror = () => reject(new Error("WS connect failed"));
-        setTimeout(() => reject(new Error("WS timeout")), 5000);
+        setTimeout(() => reject(new Error("WS timeout")), 7000);
       });
       const wsLatency = Math.round(performance.now() - wsStart);
       updateCheck(2, { status: "ok", message: `Connected in ${wsLatency}ms` });

@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Copy, Check, ExternalLink } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://visionai-236r.onrender.com";
 
 const endpoints = [
   { method: "POST", path: "/api/v1/auth/register", desc: "Register a new user" },

@@ -1,30 +1,32 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, Boxes, Clock, Cpu, Eye, Zap } from "lucide-react";
+import { BarChart3, Boxes, Clock, Cpu, Eye, Zap, Camera, Image as ImageIcon, Film, Crosshair, ArrowRight } from "lucide-react";
 import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 
-const COLORS = ["#18181b", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7"];
-const DARK_COLORS = ["#fafafa", "#d4d4d8", "#a1a1aa", "#71717a", "#3f3f46", "#27272a"];
+const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899"];
+const DARK_COLORS = ["#34d399", "#60a5fa", "#fbbf24", "#a78bfa", "#22d3ee", "#f472b6"];
 
-interface KPI { label: string; value: string | number; icon: any; color: string; }
+interface KPI { label: string; value: string | number; icon: any; iconColor: string; bg: string; }
 
 function KPICard({ kpi, loading }: { kpi: KPI; loading: boolean }) {
   return (
-    <Card>
+    <Card className="hover:border-zinc-700 transition-all">
       <CardContent className="p-5">
         <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${kpi.color}`}>
-            <kpi.icon className="h-5 w-5 text-white" />
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${kpi.bg}`}>
+            <kpi.icon className={`h-5 w-5 ${kpi.iconColor}`} />
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">{kpi.label}</p>
-            {loading ? <Skeleton className="h-6 w-16 mt-1" /> : <p className="text-2xl font-bold text-foreground">{kpi.value}</p>}
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{kpi.label}</p>
+            {loading ? <Skeleton className="h-6 w-16 mt-1" /> : <p className="text-2xl font-extrabold text-foreground">{kpi.value}</p>}
           </div>
         </div>
       </CardContent>
@@ -38,9 +40,9 @@ export default function DashboardPage() {
   const isDark = resolvedTheme === "dark";
   const chartColors = isDark ? DARK_COLORS : COLORS;
   const gridColor = isDark ? "#27272a" : "#e4e4e7";
-  const lineColor1 = isDark ? "#fafafa" : "#18181b";
-  const lineColor2 = isDark ? "#a1a1aa" : "#71717a";
-  const barFill = isDark ? "#fafafa" : "#18181b";
+  const lineColor1 = "#10b981";
+  const lineColor2 = "#3b82f6";
+  const barFill = "#10b981";
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ["analytics", "summary", days],
@@ -68,30 +70,87 @@ export default function DashboardPage() {
   });
 
   const kpis: KPI[] = [
-    { label: "Total Detections", value: summary?.total_detections?.toLocaleString() ?? "0", icon: Eye, color: "bg-zinc-900 dark:bg-zinc-100" },
-    { label: "Objects Detected", value: summary?.total_objects?.toLocaleString() ?? "0", icon: Boxes, color: "bg-zinc-700" },
-    { label: "Avg FPS", value: summary?.avg_fps?.toFixed(1) ?? "—", icon: Zap, color: "bg-emerald-600" },
-    { label: "Avg Confidence", value: summary?.avg_confidence ? `${(summary.avg_confidence * 100).toFixed(1)}%` : "—", icon: BarChart3, color: "bg-amber-600" },
-    { label: "Avg Latency", value: summary?.avg_latency_ms ? `${summary.avg_latency_ms.toFixed(0)}ms` : "—", icon: Clock, color: "bg-sky-600" },
-    { label: "Active Sessions", value: summary?.active_sessions ?? 0, icon: Cpu, color: "bg-violet-600" },
+    { label: "Total Detections", value: summary?.total_detections?.toLocaleString() ?? "0", icon: Eye, iconColor: "text-emerald-400", bg: "bg-emerald-500/10 border border-emerald-500/20" },
+    { label: "Objects Detected", value: summary?.total_objects?.toLocaleString() ?? "0", icon: Boxes, iconColor: "text-blue-400", bg: "bg-blue-500/10 border border-blue-500/20" },
+    { label: "Avg FPS", value: summary?.avg_fps ? summary.avg_fps.toFixed(1) : "—", icon: Zap, iconColor: "text-purple-400", bg: "bg-purple-500/10 border border-purple-500/20" },
+    { label: "Avg Confidence", value: summary?.avg_confidence ? `${(summary.avg_confidence * 100).toFixed(1)}%` : "—", icon: BarChart3, iconColor: "text-amber-400", bg: "bg-amber-500/10 border border-amber-500/20" },
+    { label: "Avg Latency", value: summary?.avg_latency_ms ? `${summary.avg_latency_ms.toFixed(0)}ms` : "—", icon: Clock, iconColor: "text-cyan-400", bg: "bg-cyan-500/10 border border-cyan-500/20" },
+    { label: "Active Sessions", value: summary?.active_sessions ?? 0, icon: Cpu, iconColor: "text-rose-400", bg: "bg-rose-500/10 border border-rose-500/20" },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-sm text-zinc-500 mt-1">Real-time detection analytics overview</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">VisionAI Dashboard</h1>
+          <p className="text-sm text-zinc-500 mt-1">Real-time computer vision inference and telemetry metrics</p>
         </div>
-        <select
-          value={days}
-          onChange={(e) => setDays(Number(e.target.value))}
-          className="h-9 rounded-lg border border-border px-3 text-sm bg-transparent text-foreground"
-        >
-          <option value={7}>Last 7 days</option>
-          <option value={30}>Last 30 days</option>
-          <option value={90}>Last 90 days</option>
-        </select>
+        <div className="flex items-center gap-3">
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="h-9 rounded-lg border border-border px-3 text-sm bg-card text-foreground"
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={90}>Last 90 days</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Quick Launch Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Link href="/live" className="p-4 rounded-xl border border-border bg-card hover:bg-accent hover:border-emerald-500/50 transition-all flex items-center justify-between group">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+              <Camera className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-sm font-bold group-hover:text-emerald-400 transition-colors">Live Webcam</div>
+              <div className="text-xs text-muted-foreground">30 FPS Stream</div>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+        </Link>
+
+        <Link href="/detect" className="p-4 rounded-xl border border-border bg-card hover:bg-accent hover:border-blue-500/50 transition-all flex items-center justify-between group">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+              <Crosshair className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-sm font-bold group-hover:text-blue-400 transition-colors">Choose Category</div>
+              <div className="text-xs text-muted-foreground">14 Perception Tasks</div>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
+        </Link>
+
+        <Link href="/image" className="p-4 rounded-xl border border-border bg-card hover:bg-accent hover:border-amber-500/50 transition-all flex items-center justify-between group">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+              <ImageIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-sm font-bold group-hover:text-amber-400 transition-colors">Image Detect</div>
+              <div className="text-xs text-muted-foreground">Upload & Annotate</div>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
+        </Link>
+
+        <Link href="/video" className="p-4 rounded-xl border border-border bg-card hover:bg-accent hover:border-purple-500/50 transition-all flex items-center justify-between group">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+              <Film className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-sm font-bold group-hover:text-purple-400 transition-colors">Video Detect</div>
+              <div className="text-xs text-muted-foreground">Batch & Tracking</div>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
+        </Link>
       </div>
 
       {/* KPI Grid */}

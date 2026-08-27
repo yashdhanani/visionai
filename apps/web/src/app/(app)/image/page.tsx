@@ -110,20 +110,26 @@ export default function ImageDetectionPage() {
       const h = det.bbox.height * scaleY;
 
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(x, y, w, h);
 
       const label = `${det.class_name} ${(det.confidence * 100).toFixed(0)}%`;
       const fontSize = 12;
-      ctx.font = `600 ${fontSize}px system-ui`;
+      ctx.font = `700 ${fontSize}px system-ui, sans-serif`;
       const tw = ctx.measureText(label).width;
+
+      const padX = 6;
+      const padY = 3;
+      const labelH = fontSize + padY * 2;
+      const labelY = y - labelH - 2;
 
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.roundRect(x - w / 2, y - h / 2 - fontSize - 8, tw + 12, fontSize + 6, 3);
+      ctx.roundRect(x, labelY < 0 ? y : labelY, tw + padX * 2, labelH, 4);
       ctx.fill();
+
       ctx.fillStyle = "#fff";
-      ctx.fillText(label, x - w / 2 + 6, y - h / 2 - 6);
+      ctx.fillText(label, x + padX, (labelY < 0 ? y : labelY) + fontSize + padY - 1);
     });
   };
 
