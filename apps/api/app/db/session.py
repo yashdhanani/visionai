@@ -1,13 +1,15 @@
-from __future__ import annotations
-
+import logging
 import os
+import urllib.parse
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config.settings import settings
+
+logger = logging.getLogger("visionai.db")
 
 
 class Base(DeclarativeBase):
@@ -20,10 +22,13 @@ def _engine_kwargs(url: str) -> dict:
             "connect_args": {"check_same_thread": False, "timeout": 30},
             "pool_pre_ping": True,
         }
-    return {"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True}
+    return {
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_pre_ping": True,
+        "connect_args": {"connect_timeout": 5},
+    }
 
-
-import urllib.parse
 
 def _normalize_database_url(url: str) -> str:
     if url.startswith("postgres://") or url.startswith("postgresql://"):
@@ -40,12 +45,35 @@ def _normalize_database_url(url: str) -> str:
     return url
 
 
-db_url = _normalize_database_url(settings.DATABASE_URL)
+def _init_engine():
+    raw_url = settings.DATABASE_URL
+    db_url = _normalize_database_url(raw_url)
 
-if db_url.startswith("sqlite") and ":memory:" not in db_url:
-    os.makedirs(os.path.dirname(db_url.replace("sqlite:///", "")) or ".", exist_ok=True)
+    if db_url.startswith("postgresql"):
+        try:
+            eng = create_engine(db_url, **_engine_kwargs(db_url))
+            with eng.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            logger.info("Successfully connected to PostgreSQL database")
+            return eng, db_url
+        except Exception as err:
+            logger.warning(
+                f"Failed to connect to PostgreSQL ({err}). Falling back to local SQLite database."
+            )
+            fallback_dir = os.path.join(os.getcwd(), "data")
+            os.makedirs(fallback_dir, exist_ok=True)
+            fallback_url = f"sqlite:///{os.path.join(fallback_dir, 'visionai.db')}"
+            eng = create_engine(fallback_url, **_engine_kwargs(fallback_url))
+            return eng, fallback_url
+    else:
+        if db_url.startswith("sqlite") and ":memory:" not in db_url:
+            path = db_url.replace("sqlite:///", "")
+            os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        eng = create_engine(db_url, **_engine_kwargs(db_url))
+        return eng, db_url
 
-engine = create_engine(db_url, **_engine_kwargs(db_url))
+
+engine, db_url = _init_engine()
 
 if db_url.startswith("sqlite"):
 
