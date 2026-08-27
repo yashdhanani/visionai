@@ -110,18 +110,25 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger("visionai")
     logger.info("VisionAI starting", extra={"env": settings.APP_ENV})
 
-    try:
-        Base.metadata.create_all(bind=engine)
-        _migrate_schema()
-        _seed_admin()
-        logger.info("Database schema and admin initialized successfully")
-    except Exception as db_err:
-        logger.error(f"Database initialization deferred (will connect on demand): {db_err}")
+    # Background async init so HTTP server accepts health checks and traffic immediately
+    import asyncio
 
-    try:
-        get_model_manager().load_default()
-    except Exception as exc:
-        logger.warning(f"Model warmup failed: {exc}")
+    async def async_init():
+        try:
+            Base.metadata.create_all(bind=engine)
+            _migrate_schema()
+            _seed_admin()
+            logger.info("Database schema and admin initialized")
+        except Exception as db_err:
+            logger.warning(f"Database init notice: {db_err}")
+
+        try:
+            get_model_manager().load_default()
+            logger.info("Default YOLO model ready")
+        except Exception as exc:
+            logger.warning(f"Model init notice: {exc}")
+
+    asyncio.create_task(async_init())
 
     yield
     logger.info("VisionAI shutting down")

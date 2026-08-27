@@ -18,11 +18,16 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Pre-download YOLO weights during build for instant 0ms startup
+RUN python3 -c "from ultralytics import YOLO; YOLO('yolov8n.pt'); YOLO('yolov8n-pose.pt')" || true
+
 # Copy application code & models
 COPY . .
 
-# Create non-root user for security
-RUN useradd -m -u 1000 visionai && chown -R visionai:visionai /app
+# Create writable data directories and non-root user
+RUN mkdir -p /app/data /app/data/uploads /app/models && \
+    useradd -m -u 1000 visionai && \
+    chown -R visionai:visionai /app /home/visionai
 USER visionai
 
 EXPOSE 8001

@@ -7,12 +7,14 @@ from typing import Literal
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+API_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DATA_DIR = os.path.join(API_DIR, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=os.path.join(PROJECT_ROOT, ".env"),
+        env_file=os.path.join(API_DIR, ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -23,9 +25,9 @@ class Settings(BaseSettings):
     API_PORT: int = 8001
     API_BASE_URL: str = "http://localhost:8001"
     WEB_BASE_URL: str = "http://localhost:3000"
-    CORS_ORIGINS: str = "http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:3000,https://visionai-puce.vercel.app"
 
-    DATABASE_URL: str = f"sqlite:///{os.path.join(PROJECT_ROOT, 'data', 'visionai.db')}"
+    DATABASE_URL: str = f"sqlite:///{os.path.join(DATA_DIR, 'visionai.db')}"
     REDIS_URL: str = ""
 
     JWT_SECRET: str = "dev-only-secret-change-me-0123456789abcdef0123456789abcdef"
