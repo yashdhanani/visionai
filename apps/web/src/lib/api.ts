@@ -1,6 +1,10 @@
 import axios from "axios";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+// NEXT_PUBLIC_API_URL is set via Vercel env vars.
+// Fallback to Render production URL if not set (covers all preview/branch deployments).
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://visionai-236r.onrender.com";
 
 export const api = axios.create({
   baseURL: API_BASE,
