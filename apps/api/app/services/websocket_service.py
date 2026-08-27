@@ -24,6 +24,7 @@ class _NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 import numpy as np
+import cv2
 from fastapi import WebSocket, WebSocketDisconnect
 from PIL import Image
 from sqlalchemy.orm import Session
@@ -209,8 +210,11 @@ class WSConnection:
 
         try:
             img_bytes = base64.b64decode(jpeg_b64)
-            pil = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-            frame = np.array(pil)
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if bgr is None:
+                raise ValueError("imdecode failed")
+            frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         except Exception as exc:
             await self.send_error("INVALID_FRAME", f"Cannot decode frame: {exc}")
             return

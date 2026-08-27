@@ -37,3 +37,5 @@ category_test_results.json
 test_vid.mp4
 .vercel
 .env*
+*.pt
+backend/

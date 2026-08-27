@@ -142,22 +142,45 @@ export default function LiveDetectionPage() {
     });
   }, [showBoxes, showLabels, showConf]);
 
+  const inFlightRef = useRef<boolean>(false);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastFrameTimeRef = useRef<number>(0);
+
   const sendFrame = useCallback(() => {
     const video = videoRef.current;
     const ws = wsRef.current;
     if (!video || !ws || ws.readyState !== WebSocket.OPEN || paused) return;
 
-    const tempCanvas = document.createElement("canvas");
+    // Zero-lag in-flight guard: never pile up frames in buffer
+    if (inFlightRef.current) return;
+
+    const now = performance.now();
+    const minInterval = 1000 / maxFps;
+    if (now - lastFrameTimeRef.current < minInterval) return;
+    lastFrameTimeRef.current = now;
+
+    if (!offscreenCanvasRef.current) {
+      offscreenCanvasRef.current = document.createElement("canvas");
+    }
+
+    const tempCanvas = offscreenCanvasRef.current;
     const w = video.videoWidth || 640;
     const h = video.videoHeight || 360;
     tempCanvas.width = w;
     tempCanvas.height = h;
-    const ctx = tempCanvas.getContext("2d");
+    const ctx = tempCanvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
     ctx.drawImage(video, 0, 0, w, h);
-    const dataUrl = tempCanvas.toDataURL("image/jpeg", 0.8);
+    const dataUrl = tempCanvas.toDataURL("image/jpeg", 0.70);
     const b64 = dataUrl.split(",")[1];
+
+    inFlightRef.current = true;
+
+    // Safety timeout in case a packet is lost over network
+    setTimeout(() => {
+      inFlightRef.current = false;
+    }, 120);
 
     ws.send(
       JSON.stringify({
@@ -169,7 +192,7 @@ export default function LiveDetectionPage() {
         jpeg_b64: b64,
       })
     );
-  }, [paused]);
+  }, [paused, maxFps]);
 
   const startCamera = async () => {
     try {
@@ -200,25 +223,35 @@ export default function LiveDetectionPage() {
 
     ws.onopen = () => {
       setConnected(true);
-      ws.send(JSON.stringify({ type: "config", confidence, iou, tracker, max_fps: maxFps, resolution, quality: 80, model_id: modelId }));
+      inFlightRef.current = false;
+      ws.send(JSON.stringify({ type: "config", confidence, iou, tracker, max_fps: maxFps, resolution, quality: 70, model_id: modelId }));
     };
 
     ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "detection") {
-        setDetections(msg.detections);
-        setPerf(msg.performance);
-        const counts: Record<string, number> = {};
-        msg.detections.forEach((d: Detection) => {
-          counts[d.class_name] = (counts[d.class_name] || 0) + 1;
-        });
-        setObjectCounts(counts);
-        drawDetections(msg.detections, msg.frame_width, msg.frame_height);
-      }
+      inFlightRef.current = false;
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "detection") {
+          setDetections(msg.detections);
+          setPerf(msg.performance);
+          const counts: Record<string, number> = {};
+          msg.detections.forEach((d: Detection) => {
+            counts[d.class_name] = (counts[d.class_name] || 0) + 1;
+          });
+          setObjectCounts(counts);
+          drawDetections(msg.detections, msg.frame_width, msg.frame_height);
+        }
+      } catch (e) {}
     };
 
-    ws.onerror = () => toastError("WebSocket connection error");
-    ws.onclose = () => setConnected(false);
+    ws.onerror = () => {
+      inFlightRef.current = false;
+      toastError("WebSocket connection error");
+    };
+    ws.onclose = () => {
+      inFlightRef.current = false;
+      setConnected(false);
+    };
     wsRef.current = ws;
   };
 
@@ -226,20 +259,32 @@ export default function LiveDetectionPage() {
     wsRef.current?.close();
     wsRef.current = null;
     setConnected(false);
+    inFlightRef.current = false;
   };
+
+  // Continuous animation loop for capture
+  const streamLoop = useCallback(() => {
+    sendFrame();
+    if (detecting && !paused) {
+      animFrameRef.current = requestAnimationFrame(streamLoop);
+    }
+  }, [detecting, paused, sendFrame]);
 
   const startDetection = async () => {
     await startCamera();
     connectWs();
     setDetecting(true);
-    frameTimerRef.current = setInterval(sendFrame, 1000 / maxFps);
+    inFlightRef.current = false;
+    animFrameRef.current = requestAnimationFrame(streamLoop);
   };
 
   const stopDetection = () => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (frameTimerRef.current) clearInterval(frameTimerRef.current);
     disconnectWs();
     stopCamera();
     setDetecting(false);
+    inFlightRef.current = false;
     setDetections([]);
     setPerf(null);
     setObjectCounts({});
