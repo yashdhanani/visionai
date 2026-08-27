@@ -77,15 +77,16 @@ class YOLOModel(DetectionModel):
         t0 = time.perf_counter()
         t_pre = t0
 
-        results = self._model(
-            _to_bgr(image),
-            conf=conf,
-            iou=iou,
-            classes=classes,
-            augment=augment,
-            imgsz=imgsz,
-            verbose=False,
-        )
+        with torch.inference_mode():
+            results = self._model(
+                _to_bgr(image),
+                conf=conf,
+                iou=iou,
+                classes=classes,
+                augment=augment,
+                imgsz=imgsz,
+                verbose=False,
+            )
         t_inf = time.perf_counter()
 
         detections = []
@@ -151,6 +152,7 @@ class YOLOModel(DetectionModel):
         tracker: str,
         persist: bool,
         classes: list[int] | None = None,
+        imgsz: int = 640,
     ) -> InferenceResult:
         if self._model is None:
             self.load()
@@ -161,17 +163,18 @@ class YOLOModel(DetectionModel):
 
         tracker_cfg = "bytetrack.yaml" if tracker == "bytetrack" else ("botsort.yaml" if tracker == "botsort" else None)
 
-        results = self._model.track(
-            _to_bgr(image),
-            conf=conf,
-            iou=iou,
-            classes=classes,
-            persist=persist,
-            tracker=tracker_cfg,
-            augment=False,
-            imgsz=640,
-            verbose=False,
-        )
+        with torch.inference_mode():
+            results = self._model.track(
+                _to_bgr(image),
+                conf=conf,
+                iou=iou,
+                classes=classes,
+                persist=persist,
+                tracker=tracker_cfg,
+                augment=False,
+                imgsz=imgsz,
+                verbose=False,
+            )
         t_inf = time.perf_counter()
 
         detections = []

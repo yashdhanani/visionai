@@ -230,16 +230,17 @@ class WSConnection:
         except RuntimeError:
             pass
 
+        live_imgsz = 320
         try:
             if self.tracker and self.tracker != "off":
                 res = await loop.run_in_executor(
                     None,
-                    lambda: self.model.predict_with_tracking(frame, self.conf, self.iou, self.tracker, self.persist, self.classes),
+                    lambda: self.model.predict_with_tracking(frame, self.conf, self.iou, self.tracker, self.persist, self.classes, imgsz=live_imgsz),
                 )
             else:
                 res = await loop.run_in_executor(
                     None,
-                    lambda: self.model.predict(frame, self.conf, self.iou, self.classes),
+                    lambda: self.model.predict(frame, self.conf, self.iou, self.classes, imgsz=live_imgsz),
                 )
         except Exception as exc:
             logger.exception("Inference error")
@@ -248,8 +249,10 @@ class WSConnection:
 
         from app.ml.enhance import enhance_detections
 
+        # Only run heavy OCR when category explicitly requires plate/ocr processing
+        do_ocr = self.category in ("number_plate", "ocr")
         detections = enhance_detections(
-            res.detections, frame, res.image_width, res.image_height, self.conf, self.iou
+            res.detections, frame, res.image_width, res.image_height, self.conf, self.iou, do_ocr=do_ocr
         )
         self.frame_count += 1
         self.detection_count += len(detections)

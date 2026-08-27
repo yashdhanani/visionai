@@ -167,22 +167,27 @@ export default function LiveDetectionPage() {
     }
 
     const tempCanvas = offscreenCanvasRef.current;
-    const w = video.videoWidth || 640;
-    const h = video.videoHeight || 360;
-    if (tempCanvas.width !== w || tempCanvas.height !== h) {
-      tempCanvas.width = w;
-      tempCanvas.height = h;
+    const rawW = video.videoWidth || 640;
+    const rawH = video.videoHeight || 360;
+    
+    // Optimal stream resolution (480x270) for ultra-low network latency and high FPS
+    const targetW = 480;
+    const targetH = Math.round(targetW * (rawH / rawW)) || 270;
+
+    if (tempCanvas.width !== targetW || tempCanvas.height !== targetH) {
+      tempCanvas.width = targetW;
+      tempCanvas.height = targetH;
     }
     const ctx = tempCanvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
-    ctx.drawImage(video, 0, 0, w, h);
-    const dataUrl = tempCanvas.toDataURL("image/jpeg", 0.70);
+    ctx.drawImage(video, 0, 0, targetW, targetH);
+    const dataUrl = tempCanvas.toDataURL("image/jpeg", 0.55);
     const b64 = dataUrl.split(",")[1];
 
     inFlightRef.current = true;
 
-    // Safety timeout in case of dropped packet
+    // Safety timeout in case of dropped frame
     setTimeout(() => {
       inFlightRef.current = false;
     }, 150);
@@ -192,8 +197,8 @@ export default function LiveDetectionPage() {
         type: "frame",
         seq: Date.now(),
         ts: Date.now(),
-        width: w,
-        height: h,
+        width: targetW,
+        height: targetH,
         jpeg_b64: b64,
       })
     );
