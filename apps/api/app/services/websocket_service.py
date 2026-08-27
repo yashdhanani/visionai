@@ -81,7 +81,7 @@ class WSConnection:
         self.category = category
         self.session_id = uuid.uuid4().hex
         self.model = None
-        self.conf = 0.35
+        self.conf = 0.20
         self.iou = 0.45
         self.classes: list[int] | None = None
         self.tracker: str | None = None

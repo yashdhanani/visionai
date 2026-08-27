@@ -93,7 +93,7 @@ export default function CategoryDetectPage({ params }: { params: Promise<{ categ
   const [categoryData, setCategoryData] = useState<CategoryData | null>(null);
   const [objectCounts, setObjectCounts] = useState<Record<string, number>>({});
 
-  const [confidence, setConfidence] = useState(0.35);
+  const [confidence, setConfidence] = useState(0.20);
   const [iou, setIou] = useState(0.45);
   const [maxFps, setMaxFps] = useState(15);
   const [showBoxes, setShowBoxes] = useState(true);
