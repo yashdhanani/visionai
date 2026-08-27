@@ -18,8 +18,12 @@ class StorageBackend:
 
 class LocalStorage(StorageBackend):
     def __init__(self, root: str) -> None:
-        self.root = Path(root).resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
+        try:
+            self.root = Path(root).resolve()
+            self.root.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            self.root = Path("/tmp/visionai/uploads").resolve()
+            self.root.mkdir(parents=True, exist_ok=True)
 
     def _path(self, key: str) -> Path:
         safe_key = key.replace("..", "").lstrip("/")
